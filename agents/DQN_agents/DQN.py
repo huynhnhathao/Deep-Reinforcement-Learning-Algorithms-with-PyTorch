@@ -5,6 +5,7 @@ import random
 import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
+
 from agents.Base_Agent import Base_Agent
 from exploration_strategies.Epsilon_Greedy_Exploration import Epsilon_Greedy_Exploration
 from utilities.data_structures.Replay_Buffer import Replay_Buffer
@@ -82,7 +83,8 @@ class DQN(Base_Agent):
 
     def compute_q_values_for_next_states(self, next_states):
         """Computes the q_values for next state we will use to create the loss to train the Q network"""
-        Q_targets_next = self.q_network_local(next_states).detach().max(1)[0].unsqueeze(1)
+
+        Q_targets_next = self.q_network_local(next_states).max(1)[0].unsqueeze(1)
         return Q_targets_next
 
     def compute_q_values_for_current_states(self, rewards, Q_targets_next, dones):

@@ -4,10 +4,16 @@ import sys
 import gym
 import random
 import numpy as np
-import torch
 import time
+
+
+import torch
+import torch.nn as nn
+import torch.functional as F
+
+
 # import tensorflow as tf
-from nn_builder.pytorch.NN import NN
+# from nn_builder.pytorch.NN import NN
 # from tensorboardX import SummaryWriter
 from torch.optim import optimizer
 
@@ -93,7 +99,7 @@ class Base_Agent(object):
     def get_score_required_to_win(self):
         """Gets average score required to win game"""
         print("TITLE ", self.environment_title)
-        if self.environment_title == "FetchReach": return -5
+        if self.environment_title == "FetchReach": return
         if self.environment_title in ["AntMaze", "Hopper", "Walker2d"]:
             print("Score required to win set to infinity therefore no learning rate annealing will happen")
             return float("inf")
@@ -309,8 +315,38 @@ class Base_Agent(object):
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
-    def create_NN(self, input_dim, output_dim, key_to_use=None, override_seed=None, hyperparameters=None):
-        """Creates a neural network for the agents to use"""
+
+
+
+
+    # def create_NN(self, input_dim, output_dim, key_to_use=None, override_seed=None, hyperparameters=None):
+    #     """Creates a neural network for the agents to use"""
+    #     if hyperparameters is None: hyperparameters = self.hyperparameters
+    #     if key_to_use: hyperparameters = hyperparameters[key_to_use]
+    #     if override_seed: seed = override_seed
+    #     else: seed = self.config.seed
+
+    #     default_hyperparameter_choices = {"output_activation": None, "hidden_activations": "relu", "dropout": 0.0,
+    #                                       "initialiser": "default", "batch_norm": False,
+    #                                       "columns_of_data_to_be_embedded": [],
+    #                                       "embedding_dimensions": [], "y_range": ()}
+
+    #     for key in default_hyperparameter_choices:
+    #         if key not in hyperparameters.keys():
+    #             hyperparameters[key] = default_hyperparameter_choices[key]
+
+    #     return NN(input_dim=input_dim, layers_info=hyperparameters["linear_hidden_units"] + [output_dim],
+    #               output_activation=hyperparameters["final_layer_activation"],
+    #               batch_norm=hyperparameters["batch_norm"], dropout=hyperparameters["dropout"],
+    #               hidden_activations=hyperparameters["hidden_activations"], initialiser=hyperparameters["initialiser"],
+    #               columns_of_data_to_be_embedded=hyperparameters["columns_of_data_to_be_embedded"],
+    #               embedding_dimensions=hyperparameters["embedding_dimensions"], y_range=hyperparameters["y_range"],
+    #               random_seed=seed).to(self.device)
+
+
+
+    def create_NN(self, input_dim, output_dim, key_to_use = None, override_seed = None, hyperparameters = None):
+        """Create neural network on new version of pytorch"""
         if hyperparameters is None: hyperparameters = self.hyperparameters
         if key_to_use: hyperparameters = hyperparameters[key_to_use]
         if override_seed: seed = override_seed
@@ -325,13 +361,11 @@ class Base_Agent(object):
             if key not in hyperparameters.keys():
                 hyperparameters[key] = default_hyperparameter_choices[key]
 
-        return NN(input_dim=input_dim, layers_info=hyperparameters["linear_hidden_units"] + [output_dim],
-                  output_activation=hyperparameters["final_layer_activation"],
-                  batch_norm=hyperparameters["batch_norm"], dropout=hyperparameters["dropout"],
-                  hidden_activations=hyperparameters["hidden_activations"], initialiser=hyperparameters["initialiser"],
-                  columns_of_data_to_be_embedded=hyperparameters["columns_of_data_to_be_embedded"],
-                  embedding_dimensions=hyperparameters["embedding_dimensions"], y_range=hyperparameters["y_range"],
-                  random_seed=seed).to(self.device)
+        return linear_net(input_dim = input_dim, output_dim = output_dim, linear_hidden_units = hyperparameters['linear_hidden_units'],).to(self.device)
+                            
+    
+
+
 
     def turn_on_any_epsilon_greedy_exploration(self):
         """Turns off all exploration with respect to the epsilon greedy exploration strategy"""
@@ -370,3 +404,30 @@ class Base_Agent(object):
         """Copies model parameters from from_model to to_model"""
         for to_model, from_model in zip(to_model.parameters(), from_model.parameters()):
             to_model.data.copy_(from_model.data.clone())
+
+
+
+
+class linear_net(nn.Module):
+    def __init__(self, input_dim, output_dim, linear_hidden_units,  ):
+        super(linear_net, self).__init__()
+        self.linear_layers = []
+        self.input_layer = nn.Linear(input_dim, linear_hidden_units[0])
+        if len(linear_hidden_units) > 2:
+            for i in range(1, len(linear_hidden_units) - 1):
+                self.linear_layers[i] = nn.Linear(linear_hidden_units[i], linear_hidden_units[i+1])
+        else:
+            self.hidden_layer = nn.Linear(linear_hidden_units[0], linear_hidden_units[1])
+
+        self.output_layer = nn.Linear(linear_hidden_units[-1], output_dim)
+
+
+    def forward(self, x):
+        x = self.input_layer(x)
+        if len(self.linear_layers) > 0:
+            for layer in self.linear_layers:
+                x = layer(x)
+        x = self.hidden_layer(x)
+        output = self.output_layer(x)
+
+        return output

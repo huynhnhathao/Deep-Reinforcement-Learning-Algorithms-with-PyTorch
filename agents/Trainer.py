@@ -107,9 +107,12 @@ class Trainer(object):
                                                                            dict_keys=["observation", "desired_goal"])
 
             if self.config.randomise_random_seed: agent_config.seed = random.randint(0, 2**32 - 2)
+            #agent_config get from self.config has many configs for many agents, here we get the 
+            #config of specific agent from the self.config
             agent_config.hyperparameters = agent_config.hyperparameters[agent_group]
             print("AGENT NAME: {}".format(agent_name))
             print("\033[1m" + "{}.{}: {}".format(agent_number, agent_round, agent_name) + "\033[0m", flush=True)
+            # the class of an agents, below we instantiate one agent from the agent class, with the config we just get above
             agent = agent_class(agent_config)
             self.environment_name = agent.environment_title
             print(agent.hyperparameters)
@@ -123,6 +126,7 @@ class Trainer(object):
                 plt.show()
             agent_round += 1
         self.results[agent_name] = agent_results
+        # print(self.results)
 
     def environment_has_changeable_goals(self, env):
         """Determines whether environment is such that for each episode there is a different goal or not"""
